@@ -39,6 +39,15 @@ DATANODES_PUBLIC = [url.strip() for url in _raw_public.split(",")]
 logger.info(f"DataNodes internos : {DATANODES_INTERNAL}")
 logger.info(f"DataNodes públicos : {DATANODES_PUBLIC}")
 
+# Mapa público→interno para que el NameNode use hostnames Docker al llamar a los DataNodes
+# Ejemplo: "http://52.x.x.x:8001" → "http://datanode1:8001"
+PUBLIC_TO_INTERNAL: dict[str, str] = dict(zip(DATANODES_PUBLIC, DATANODES_INTERNAL))
+
+
+def internal_url(public_replica: str) -> str:
+    """Traduce una URL pública de réplica a su equivalente interno Docker."""
+    return PUBLIC_TO_INTERNAL.get(public_replica, public_replica)
+
 # ---------------------------------------------------------------------------
 # App
 # ---------------------------------------------------------------------------
@@ -238,7 +247,7 @@ def delete_file(
         for replica_url in block["replicas"]:
             try:
                 resp = requests.delete(
-                    f"{replica_url}/block/{block['block_id']}",
+                    f"{internal_url(replica_url)}/block/{block['block_id']}",
                     timeout=5
                 )
                 if resp.status_code not in (200, 404):
@@ -320,7 +329,7 @@ def remove_directory(
             for replica_url in block["replicas"]:
                 try:
                     requests.delete(
-                        f"{replica_url}/block/{block['block_id']}",
+                        f"{internal_url(replica_url)}/block/{block['block_id']}",
                         timeout=5
                     )
                 except Exception:
