@@ -1,6 +1,9 @@
 import os
 import logging
+import threading
+import time
 
+import requests
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import Response
 
@@ -15,7 +18,65 @@ logging.basicConfig(
 )
 logger = logging.getLogger("datanode")
 
+PUBLIC_IP = os.getenv("PUBLIC_IP", "52.23.74.126")
 NODE_ID = os.getenv("NODE_ID", "datanode-unknown")
+NAMENODE_URL = os.getenv("NAMENODE_URL", "http://namenode:8000")
+
+_PORT_MAP = {"datanode1": "8001", "datanode2": "8002", "datanode3": "8003"}
+_DEFAULT_PORT = _PORT_MAP.get(NODE_ID, os.getenv("PORT", "8001"))
+NODE_PUBLIC_URL = os.getenv(
+    "NODE_PUBLIC_URL",
+    f"http://{PUBLIC_IP}:{_DEFAULT_PORT}",
+)
+HEARTBEAT_INTERVAL_SEC = int(os.getenv("HEARTBEAT_INTERVAL_SEC", "30"))
+
+# ---------------------------------------------------------------------------
+# Heartbeat hacia el NameNode
+# ---------------------------------------------------------------------------
+
+def register_with_namenode() -> bool:
+    try:
+        resp = requests.post(
+            f"{NAMENODE_URL}/datanodes/register",
+            json={"node_id": NODE_ID, "url": NODE_PUBLIC_URL},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        logger.info(f"Registrado en NameNode: {NODE_ID} -> {NODE_PUBLIC_URL}")
+        return True
+    except Exception as e:
+        logger.error(f"No se pudo registrar en NameNode: {e}")
+        return False
+
+
+def send_heartbeat() -> None:
+    try:
+        requests.post(
+            f"{NAMENODE_URL}/datanodes/heartbeat",
+            json={"node_id": NODE_ID, "blocks": list_blocks()},
+            timeout=10,
+        ).raise_for_status()
+        logger.debug(f"Heartbeat enviado: {NODE_ID}")
+    except Exception as e:
+        logger.warning(f"Heartbeat fallido: {e}")
+
+
+def heartbeat_loop() -> None:
+    while True:
+        send_heartbeat()
+        time.sleep(HEARTBEAT_INTERVAL_SEC)
+
+
+def start_heartbeat_thread() -> None:
+    if register_with_namenode():
+        thread = threading.Thread(target=heartbeat_loop, daemon=True)
+        thread.start()
+        logger.info(
+            f"Hilo de heartbeat iniciado (cada {HEARTBEAT_INTERVAL_SEC}s -> {NAMENODE_URL})"
+        )
+    else:
+        logger.warning("Heartbeat no iniciado: registro en NameNode falló")
+
 
 # ---------------------------------------------------------------------------
 # App
@@ -23,8 +84,13 @@ NODE_ID = os.getenv("NODE_ID", "datanode-unknown")
 app = FastAPI(
     title="DFS DataNode",
     version="2.0.0",
-    description=f"Nodo de datos"
+    description="Nodo de datos"
 )
+
+
+@app.on_event("startup")
+def on_startup():
+    start_heartbeat_thread()
 
 
 @app.get("/", tags=["Health"])

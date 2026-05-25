@@ -14,3 +14,13 @@ class FileMetadata(BaseModel):
     blocks: List[BlockMetadata]
     owner: Optional[str] = None       # Usuario propietario del archivo
     total_size: Optional[int] = None  # Tamaño total del archivo en bytes
+
+
+class DataNodeRegister(BaseModel):
+    node_id: str
+    url: str
+
+
+class DataNodeHeartbeat(BaseModel):
+    node_id: str
+    blocks: Optional[List[str]] = None

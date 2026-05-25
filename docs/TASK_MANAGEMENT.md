@@ -55,21 +55,22 @@
 
 ---
 
-## Sprint 3 — Tolerancia a fallos · JuanVal0308
+## Sprint 3 — Tolerancia a fallos · JuanVal0308 ✅
 
-> **Rama:** `feature/heartbeat-replication`
+> **Rama:** `feature/heartbeat-replication` (fusionado en `main`)  
+> **Despliegue:** EC2 `52.23.74.126` — NameNode `:8000`, DataNodes `:8001`–`:8003`
 
 ### Código
 
 | ID | Tarea | Archivo | Estado |
 |----|-------|---------|--------|
-| T-20 | Agregar colección `datanodes` en MongoDB | `namenode/app/database.py` | 📋 Backlog |
-| T-21 | Endpoint `POST /datanodes/register` | `namenode/app/main.py` | 📋 Backlog |
-| T-22 | Endpoint `POST /datanodes/heartbeat` | `namenode/app/main.py` | 📋 Backlog |
-| T-23 | Endpoint `GET /datanodes` | `namenode/app/main.py` | 📋 Backlog |
-| T-24 | Hilo de heartbeat en el DataNode al arrancar | `datanode/app/main.py` | 📋 Backlog |
-| T-25 | Job de monitoreo: detectar nodos sin heartbeat en >90 s | `namenode/app/main.py` | 📋 Backlog |
-| T-26 | Re-replicación activa al detectar nodo caído | `namenode/app/main.py` | 📋 Backlog |
+| T-20 | Agregar colección `datanodes` en MongoDB | `namenode/app/database.py` | ✅ Hecho |
+| T-21 | Endpoint `POST /datanodes/register` | `namenode/app/main.py` | ✅ Hecho |
+| T-22 | Endpoint `POST /datanodes/heartbeat` | `namenode/app/main.py` | ✅ Hecho |
+| T-23 | Endpoint `GET /datanodes` | `namenode/app/main.py` | ✅ Hecho |
+| T-24 | Hilo de heartbeat en el DataNode al arrancar | `datanode/app/main.py` | ✅ Hecho |
+| T-25 | Job de monitoreo: detectar nodos sin heartbeat en >90 s | `namenode/app/main.py` | ✅ Hecho |
+| T-26 | Re-replicación activa al detectar nodo caído | `namenode/app/main.py` | ✅ Hecho |
 
 ### Documentación
 

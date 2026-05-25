@@ -125,10 +125,7 @@ JWT_SECRET=<cadena-secreta-larga>
 ### 2. Configurar el entorno en `.env` (raíz del proyecto)
 
 ```env
-# Para desarrollo local
-PUBLIC_IP=localhost
-
-# Para despliegue en EC2 — reemplazar con la IP pública de la instancia
+# IP pública EC2 (NameNode :8000, DataNodes :8001-:8003)
 PUBLIC_IP=52.23.74.126
 ```
 
@@ -141,10 +138,11 @@ docker-compose up -d
 ### 4. Verificar que todo está corriendo
 
 ```bash
-curl http://localhost:8000   # NameNode
-curl http://localhost:8001   # DataNode 1
-curl http://localhost:8002   # DataNode 2
-curl http://localhost:8003   # DataNode 3
+curl http://52.23.74.126:8000   # NameNode
+curl http://52.23.74.126:8001   # DataNode 1
+curl http://52.23.74.126:8002   # DataNode 2
+curl http://52.23.74.126:8003   # DataNode 3
+curl http://52.23.74.126:8000/datanodes   # Estado de DataNodes
 ```
 
 Respuesta esperada de cada servicio:
@@ -174,7 +172,7 @@ pip install -r requirements.txt
 
 | Variable | Default | Descripción |
 |---|---|---|
-| `NAMENODE_URL` | `http://localhost:8000` | URL del NameNode |
+| `NAMENODE_URL` | `http://52.23.74.126:8000` | URL del NameNode |
 | `DFS_BLOCK_SIZE` | `67108864` (64 MB) | Tamaño de bloque en bytes |
 
 ```bash
