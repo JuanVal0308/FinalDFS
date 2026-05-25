@@ -8,4 +8,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-ENTRYPOINT ["python", "dfs_client.py"]
+ENV NAMENODE_URL=http://namenode:8000
+ENV DFS_BLOCK_SIZE=67108864
+
+ENTRYPOINT ["python", "dfs_cli.py"]

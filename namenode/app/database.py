@@ -10,5 +10,6 @@ client = MongoClient(MONGO_URI)
 
 db = client["dfs_system"]
 
-users_collection = db["users"]
-files_collection = db["files"]
+users_collection       = db["users"]
+files_collection       = db["files"]
+directories_collection = db["directories"]

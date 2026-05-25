@@ -7,21 +7,47 @@ services:
       - "8000:8000"
     env_file:
       - ./namenode/.env
+    environment:
+      - DATANODES=http://datanode1:8001,http://datanode2:8001,http://datanode3:8001
+    networks:
+      - dfsnet
 
   datanode1:
     build: ./datanode
     container_name: datanode1
     ports:
       - "8001:8001"
+    environment:
+      - NODE_ID=datanode1
+      - NAMENODE_URL=http://namenode:8000
+      - PORT=8001
+    networks:
+      - dfsnet
 
   datanode2:
     build: ./datanode
     container_name: datanode2
     ports:
       - "8002:8001"
+    environment:
+      - NODE_ID=datanode2
+      - NAMENODE_URL=http://namenode:8000
+      - PORT=8001
+    networks:
+      - dfsnet
 
   datanode3:
     build: ./datanode
     container_name: datanode3
     ports:
       - "8003:8001"
+    environment:
+      - NODE_ID=datanode3
+      - NAMENODE_URL=http://namenode:8000
+      - PORT=8001
+    networks:
+      - dfsnet
+
+networks:
+  dfsnet:
+    driver: bridge
