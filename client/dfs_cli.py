@@ -20,7 +20,7 @@ Comandos:
     rmdir    <ruta>                   Elimina un directorio y su contenido
 
 Variables de entorno:
-    NAMENODE_URL      URL del NameNode (default: http://localhost:8000)
+    NAMENODE_URL      URL del NameNode (default: http://52.23.74.126:8000)
     DFS_BLOCK_SIZE    Tamaño de bloque en bytes (default: 67108864 = 64 MB)
 """
 
@@ -35,7 +35,7 @@ import requests
 # ---------------------------------------------------------------------------
 # Configuración desde variables de entorno
 # ---------------------------------------------------------------------------
-NAMENODE_URL = os.getenv("NAMENODE_URL", "http://localhost:8000")
+NAMENODE_URL = os.getenv("NAMENODE_URL", "http://52.23.74.126:8000")
 BLOCK_SIZE   = int(os.getenv("DFS_BLOCK_SIZE", 64 * 1024 * 1024))  # 64 MB por defecto
 TOKEN_FILE   = os.path.join(os.path.dirname(__file__), ".dfs_token")
 

@@ -10,11 +10,9 @@ services:
     environment:
       # Hostnames internos Docker — usados para comunicación entre contenedores
       - DATANODES=http://datanode1:8001,http://datanode2:8001,http://datanode3:8001
-      # URLs públicas devueltas al cliente en /allocate
-      # LOCAL:  dejar PUBLIC_IP=localhost  (valor por defecto en .env)
-      # EC2:    cambiar PUBLIC_IP=<ip-publica-ec2>  en el archivo .env de la raíz
-      - PUBLIC_DATANODES=http://${PUBLIC_IP:-localhost}:8001,http://${PUBLIC_IP:-localhost}:8002,http://${PUBLIC_IP:-localhost}:8003
-      - PUBLIC_NAMENODE=http://${PUBLIC_IP:-localhost}:8000
+      # URLs públicas EC2 devueltas al cliente en /allocate
+      - PUBLIC_DATANODES=http://${PUBLIC_IP:-52.23.74.126}:8001,http://${PUBLIC_IP:-52.23.74.126}:8002,http://${PUBLIC_IP:-52.23.74.126}:8003
+      - PUBLIC_NAMENODE=http://${PUBLIC_IP:-52.23.74.126}:8000
     networks:
       - dfsnet
 
@@ -27,6 +25,7 @@ services:
       - NODE_ID=datanode1
       - NAMENODE_URL=http://namenode:8000
       - PORT=8001
+      - NODE_PUBLIC_URL=http://${PUBLIC_IP:-52.23.74.126}:8001
     networks:
       - dfsnet
 
@@ -39,6 +38,7 @@ services:
       - NODE_ID=datanode2
       - NAMENODE_URL=http://namenode:8000
       - PORT=8001
+      - NODE_PUBLIC_URL=http://${PUBLIC_IP:-52.23.74.126}:8002
     networks:
       - dfsnet
 
@@ -51,6 +51,7 @@ services:
       - NODE_ID=datanode3
       - NAMENODE_URL=http://namenode:8000
       - PORT=8001
+      - NODE_PUBLIC_URL=http://${PUBLIC_IP:-52.23.74.126}:8003
     networks:
       - dfsnet
 
