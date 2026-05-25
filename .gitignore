@@ -1,0 +1,33 @@
+# Variables de entorno con credenciales — NO subir al repositorio
+.env
+namenode/.env
+
+# Token de sesión del cliente DFS
+client/.dfs_token
+
+# Archivos temporales y caché de Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Entornos virtuales
+venv/
+.venv/
+env/
+ENV/
+
+# Bloques de datos almacenados localmente
+datanode*/blocks/
+blocks/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+
+# Binarios de prueba generados
+downloaded_*
+replicated.bin
+bigfile.bin

@@ -8,7 +8,13 @@ services:
     env_file:
       - ./namenode/.env
     environment:
+      # Hostnames internos Docker — usados para comunicación entre contenedores
       - DATANODES=http://datanode1:8001,http://datanode2:8001,http://datanode3:8001
+      # URLs públicas devueltas al cliente en /allocate
+      # LOCAL:  dejar PUBLIC_IP=localhost  (valor por defecto en .env)
+      # EC2:    cambiar PUBLIC_IP=<ip-publica-ec2>  en el archivo .env de la raíz
+      - PUBLIC_DATANODES=http://${PUBLIC_IP:-localhost}:8001,http://${PUBLIC_IP:-localhost}:8002,http://${PUBLIC_IP:-localhost}:8003
+      - PUBLIC_NAMENODE=http://${PUBLIC_IP:-localhost}:8000
     networks:
       - dfsnet
 

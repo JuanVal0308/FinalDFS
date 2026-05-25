@@ -21,13 +21,23 @@ logger = logging.getLogger("namenode")
 # ---------------------------------------------------------------------------
 # Configuración desde variables de entorno
 # ---------------------------------------------------------------------------
-_raw_datanodes = os.getenv(
+
+# URLs internas Docker — para comunicación contenedor-a-contenedor (heartbeat, re-replicación)
+_raw_internal = os.getenv(
     "DATANODES",
     "http://localhost:8001,http://localhost:8002,http://localhost:8003"
 )
-DATANODES = [url.strip() for url in _raw_datanodes.split(",")]
+DATANODES_INTERNAL = [url.strip() for url in _raw_internal.split(",")]
 
-logger.info(f"DataNodes configurados: {DATANODES}")
+# URLs públicas — devueltas al cliente en /allocate para que pueda subir/bajar bloques.
+# En local:  PUBLIC_IP=localhost  →  http://localhost:8001 ...
+# En EC2:    PUBLIC_IP=<ip-publica> →  http://52.x.x.x:8001 ...
+# Si PUBLIC_DATANODES no está definida, cae en los mismos valores que DATANODES (compatibilidad).
+_raw_public = os.getenv("PUBLIC_DATANODES", _raw_internal)
+DATANODES_PUBLIC = [url.strip() for url in _raw_public.split(",")]
+
+logger.info(f"DataNodes internos : {DATANODES_INTERNAL}")
+logger.info(f"DataNodes públicos : {DATANODES_PUBLIC}")
 
 # ---------------------------------------------------------------------------
 # App
@@ -60,7 +70,8 @@ def root():
     return {
         "service": "DFS NameNode",
         "status": "running",
-        "datanodes": DATANODES
+        "datanodes_internal": DATANODES_INTERNAL,
+        "datanodes_public":   DATANODES_PUBLIC
     }
 
 
@@ -115,12 +126,12 @@ def allocate_file(
     Requiere autenticación.
     """
     blocks = []
-    total_nodes = len(DATANODES)
+    total_nodes = len(DATANODES_PUBLIC)
 
     for i in range(num_blocks):
         block_id = f"{username}_{filename}_block{i}"
-        primary = DATANODES[i % total_nodes]
-        replica = DATANODES[(i + 1) % total_nodes]
+        primary = DATANODES_PUBLIC[i % total_nodes]
+        replica = DATANODES_PUBLIC[(i + 1) % total_nodes]
         blocks.append({
             "block_id": block_id,
             "replicas": [primary, replica]
