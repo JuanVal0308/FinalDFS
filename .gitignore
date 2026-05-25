@@ -31,3 +31,7 @@ blocks/
 downloaded_*
 replicated.bin
 bigfile.bin
+*.bin
+
+# Documentos de evidencia pesados (subirlos por separado si se necesitan)
+docs/Evidencias*.docx
