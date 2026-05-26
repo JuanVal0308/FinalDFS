@@ -15,6 +15,7 @@ Comandos:
     put      <ruta_local>             Sube un archivo al DFS
     get      <nombre_remoto>          Descarga un archivo del DFS
     ls                                Lista los archivos del usuario
+    status                            Muestra el estado de los DataNodes
     rm       <nombre_remoto>          Elimina un archivo del DFS
     mkdir    <ruta>                   Crea un directorio virtual
     rmdir    <ruta>                   Elimina un directorio y su contenido
@@ -89,7 +90,11 @@ def cmd_login(username: str, password: str) -> None:
         save_token(token)
         print(f"[OK] Sesión iniciada como '{username}'. Token guardado en {TOKEN_FILE}")
     else:
-        print(f"[ERROR] {resp.status_code}: {resp.json().get('detail', resp.text)}")
+        try:
+            detail = resp.json().get("detail", resp.text)
+        except Exception:
+            detail = resp.text or "(sin respuesta del servidor)"
+        print(f"[ERROR] {resp.status_code}: {detail}")
         sys.exit(1)
 
 
@@ -252,6 +257,36 @@ def cmd_get(filename: str) -> None:
     print(f"[OK] Archivo reconstruido: {out_path}")
 
 
+def cmd_status() -> None:
+    """Muestra el estado de cada DataNode registrado en el NameNode."""
+    resp = requests.get(f"{NAMENODE_URL}/datanodes", timeout=10)
+    if resp.status_code != 200:
+        try:
+            detail = resp.json().get("detail", resp.text)
+        except Exception:
+            detail = resp.text or "(sin respuesta)"
+        print(f"[ERROR] {resp.status_code}: {detail}")
+        sys.exit(1)
+
+    nodes = resp.json().get("datanodes", [])
+    if not nodes:
+        print("(no hay DataNodes registrados)")
+        return
+
+    print(f"{'Nodo':<12} {'Estado':<8} {'Bloques':>8}  {'Último heartbeat':<22} URL")
+    print("-" * 90)
+    for n in nodes:
+        status = n.get("status", "?")
+        marker = "✓" if status == "alive" else "✗"
+        print(
+            f"{n.get('node_id', '?'):<12} "
+            f"{marker} {status:<6} "
+            f"{n.get('blocks_count', 0):>8}  "
+            f"{n.get('last_seen', '—'):<22} "
+            f"{n.get('url', '')}"
+        )
+
+
 def cmd_ls() -> None:
     """Lista todos los archivos del usuario autenticado."""
     resp = requests.get(
@@ -364,6 +399,9 @@ def main():
     # ls
     subparsers.add_parser("ls", help="Lista los archivos del usuario")
 
+    # status
+    subparsers.add_parser("status", help="Estado de los DataNodes (heartbeat)")
+
     # rm
     p = subparsers.add_parser("rm", help="Elimina un archivo del DFS")
     p.add_argument("filename", help="Nombre del archivo en el DFS")
@@ -384,6 +422,7 @@ def main():
         "put":      lambda: cmd_put(args.local_path),
         "get":      lambda: cmd_get(args.filename),
         "ls":       lambda: cmd_ls(),
+        "status":   lambda: cmd_status(),
         "rm":       lambda: cmd_rm(args.filename),
         "mkdir":    lambda: cmd_mkdir(args.path),
         "rmdir":    lambda: cmd_rmdir(args.path),
