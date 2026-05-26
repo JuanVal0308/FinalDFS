@@ -76,34 +76,32 @@
 
 | ID | Tarea | Archivo | Estado |
 |----|-------|---------|--------|
-| T-27 | Redactar §6 del informe: algoritmos de distribución, replicación y re-replicación | `docs/INFORME.md` | 📋 Backlog |
-| T-28 | Redactar §8 del informe: pruebas de tolerancia a fallos con capturas | `docs/INFORME.md` | 📋 Backlog |
+| T-27 | Redactar §6 del informe: algoritmos de distribución, replicación y re-replicación | `docs/INFORME.md` | ✅ Hecho |
+| T-28 | Redactar §8 del informe: pruebas de tolerancia a fallos con capturas | `docs/INFORME.md` | ✅ Hecho |
 
 ---
 
-## Sprint 3 — Documentación e Informe · Sara
+## Sprint 3 — Documentación e Informe · Sara ✅
 
-> **Rama:** `feature/docs-informe`
+> **Rama:** `feature/docs-informe` (fusionado en `main`)
 
 ### Código
 
 | ID | Tarea | Archivo | Estado |
 |----|-------|---------|--------|
-| T-29 | Comando `status` en la CLI: muestra estado de cada DataNode | `client/dfs_cli.py` | 📋 Backlog |
-
-> ⚠️ Depende de T-23. Coordinar con Integrante 3 antes de implementar.
+| T-29 | Comando `status` en la CLI: muestra estado de cada DataNode | `client/dfs_cli.py` | ✅ Hecho |
 
 ### Documentación
 
 | ID | Tarea | Archivo | Estado |
 |----|-------|---------|--------|
-| T-30 | Diagrama de secuencia: flujo PUT | `docs/diagrams/seq_put.md` | 📋 Backlog |
-| T-31 | Diagrama de secuencia: flujo GET con failover | `docs/diagrams/seq_get.md` | 📋 Backlog |
-| T-32 | Diagrama de secuencia: heartbeat y re-replicación | `docs/diagrams/seq_heartbeat.md` | 📋 Backlog |
-| T-33 | Diagrama de despliegue AWS (EC2, contenedores, puertos) | `docs/diagrams/deploy_aws.md` | 📋 Backlog |
-| T-34 | Redactar §1–§5 y §7 del informe | `docs/INFORME.md` | 📋 Backlog |
-| T-35 | Redactar §9 del informe: conclusiones | `docs/INFORME.md` | 📋 Backlog |
-| T-36 | Completar y entregar plantilla de autoevaluación al docente ⚠️ evita −10% | PDF/Word | 📋 Backlog |
+| T-30 | Diagrama de secuencia: flujo PUT | `docs/diagrams/seq_put.md` | ✅ Hecho |
+| T-31 | Diagrama de secuencia: flujo GET con failover | `docs/diagrams/seq_get.md` | ✅ Hecho |
+| T-32 | Diagrama de secuencia: heartbeat y re-replicación | `docs/diagrams/seq_heartbeat.md` | ✅ Hecho |
+| T-33 | Diagrama de despliegue AWS (EC2, contenedores, puertos) | `docs/diagrams/deploy_aws.md` | ✅ Hecho |
+| T-34 | Redactar §1–§5 y §7 del informe | `docs/INFORME.md` | ✅ Hecho |
+| T-35 | Redactar §9 del informe: conclusiones | `docs/INFORME.md` | ✅ Hecho |
+| T-36 | Plantilla de autoevaluación (exportar PDF para el docente) | `docs/AUTOEVALUACION.md` | ✅ Hecho |
 
 **Estructura de `docs/INFORME.md`:**
 

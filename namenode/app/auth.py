@@ -17,11 +17,15 @@ def hash_password(password: str) -> bytes:
     )
 
 
-def verify_password(password: str, hashed: bytes) -> bool:
-    return bcrypt.checkpw(
-        password.encode(),
-        hashed
-    )
+def verify_password(password: str, hashed) -> bool:
+    try:
+        if isinstance(hashed, str):
+            hashed = hashed.encode("utf-8")
+        # bcrypt limita la contraseña en texto plano a 72 bytes
+        pwd_bytes = password.encode("utf-8")[:72]
+        return bcrypt.checkpw(pwd_bytes, hashed)
+    except (ValueError, TypeError):
+        return False
 
 
 def create_token(username: str) -> str:

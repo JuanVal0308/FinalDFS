@@ -284,6 +284,7 @@ python dfs_cli.py rmdir proyectos/2026
 | `put` | `<ruta_local>` | Subir archivo al DFS |
 | `get` | `<nombre_remoto>` | Descargar archivo del DFS |
 | `ls` | — | Listar mis archivos |
+| `status` | — | Estado de los DataNodes (heartbeat) |
 | `rm` | `<nombre_remoto>` | Eliminar archivo (metadata + bloques) |
 | `mkdir` | `<ruta>` | Crear directorio virtual |
 | `rmdir` | `<ruta>` | Eliminar directorio y su contenido |
@@ -309,6 +310,9 @@ Documentación interactiva disponible en `http://localhost:8000/docs` (Swagger U
 | `POST` | `/directories` | ✅ JWT | Crear directorio (`mkdir`) |
 | `GET` | `/directories` | ✅ JWT | Listar directorios |
 | `DELETE` | `/directories/{path}` | ✅ JWT | Eliminar directorio (`rmdir`) |
+| `GET` | `/datanodes` | No | Estado de DataNodes (`status` en CLI) |
+| `POST` | `/datanodes/register` | No | Registro de DataNode |
+| `POST` | `/datanodes/heartbeat` | No | Heartbeat de DataNode |
 
 > Todos los endpoints protegidos requieren el header: `Authorization: Bearer <token>`
 

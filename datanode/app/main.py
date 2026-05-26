@@ -68,14 +68,20 @@ def heartbeat_loop() -> None:
 
 
 def start_heartbeat_thread() -> None:
-    if register_with_namenode():
-        thread = threading.Thread(target=heartbeat_loop, daemon=True)
-        thread.start()
-        logger.info(
-            f"Hilo de heartbeat iniciado (cada {HEARTBEAT_INTERVAL_SEC}s -> {NAMENODE_URL})"
-        )
-    else:
-        logger.warning("Heartbeat no iniciado: registro en NameNode falló")
+    def _run():
+        for attempt in range(10):
+            if register_with_namenode():
+                heartbeat_loop()
+                return
+            logger.warning(f"Reintento de registro {attempt + 1}/10 en 5s...")
+            time.sleep(5)
+        logger.error("Heartbeat no iniciado: registro en NameNode falló")
+
+    thread = threading.Thread(target=_run, daemon=True)
+    thread.start()
+    logger.info(
+        f"Hilo de heartbeat iniciado (cada {HEARTBEAT_INTERVAL_SEC}s -> {NAMENODE_URL})"
+    )
 
 
 # ---------------------------------------------------------------------------
