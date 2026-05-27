@@ -7,7 +7,8 @@
 ## Herramienta utilizada: GitHub Projects
 
 **Tablero:** [FinalDFS — Sprint Board](https://github.com/users/JoseVelez/projects/1)
-*(Actualizar con el enlace real del tablero una vez creado)*
+
+**Documentación del repo:** [docs/README.md](README.md)
 
 ---
 

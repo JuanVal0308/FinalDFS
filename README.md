@@ -1,6 +1,13 @@
 # 📦 FinalDFS — Sistema de Archivos Distribuido
 
-Sistema de archivos distribuido (DFS) implementado con Python, FastAPI y MongoDB Atlas. Permite subir archivos dividiéndolos en bloques replicados a través de múltiples nodos de datos, con un nodo de nombres central que gestiona la metadata y la autenticación de usuarios.
+Sistema de archivos distribuido (DFS) implementado con Python, FastAPI y MongoDB Atlas. Divide archivos en bloques replicados en múltiples DataNodes, con un NameNode central para metadata, autenticación JWT y **tolerancia a fallos** (heartbeat, detección de nodos caídos y re-replicación).
+
+| Entorno | NameNode | DataNodes |
+|---------|----------|-----------|
+| **Producción (EC2)** | http://52.23.74.126:8000 | :8001, :8002, :8003 |
+| **Swagger** | http://52.23.74.126:8000/docs | — |
+
+📚 **Más documentación:** [docs/README.md](docs/README.md) · [Guía EC2](docs/GUIA_EC2.md) · [Guía demo](docs/GUIA_DEMO.md) · [Informe](docs/INFORME.md)
 
 ---
 
@@ -73,6 +80,18 @@ Bloque 2 → DN3 (primario)  +  DN1 (réplica)
 | Algoritmo de distribución | Round-Robin |
 | Integridad | SHA-256 por bloque |
 
+### Tolerancia a fallos (Sprint 3)
+
+```
+DataNode arranca → POST /datanodes/register
+Cada 30 s       → POST /datanodes/heartbeat
+NameNode        → Si sin heartbeat > 90 s → status: dead
+                 → Re-replica bloques huérfanos a nodos vivos
+Cliente get     → Si una réplica falla, prueba la siguiente
+```
+
+Diagrama: [docs/diagrams/seq_heartbeat.md](docs/diagrams/seq_heartbeat.md)
+
 ---
 
 ## 📁 Estructura del proyecto
@@ -83,27 +102,35 @@ FinalDFS/
 ├── .env.example            # Plantilla de configuración
 ├── docker-compose.yml      # Orquestación de todos los servicios
 │
+├── docs/
+│   ├── README.md           # Índice de documentación
+│   ├── GUIA_EC2.md         # Despliegue en AWS
+│   ├── GUIA_DEMO.md        # Guion de demostración
+│   ├── INFORME.md          # Informe académico
+│   ├── CONTEXT.md          # Contexto técnico
+│   └── diagrams/           # Diagramas Mermaid (PUT, GET, heartbeat, AWS)
+│
 ├── namenode/
 │   ├── Dockerfile
 │   ├── requirements.txt
-│   ├── .env                # MONGO_URI + JWT_SECRET (no subir al repo)
+│   ├── .env.example        # Plantilla MONGO_URI + JWT_SECRET
 │   └── app/
-│       ├── main.py         # Endpoints REST: auth, allocate, register, ls, rm, mkdir, rmdir
-│       ├── models.py       # Modelos Pydantic (FileMetadata, BlockMetadata)
-│       ├── database.py     # Conexión MongoDB Atlas
-│       └── auth.py         # JWT (PyJWT) + bcrypt
+│       ├── main.py         # Auth, archivos, directorios, datanodes, re-replicación
+│       ├── models.py       # FileMetadata, BlockMetadata, DataNode*
+│       ├── database.py     # users, files, directories, datanodes
+│       └── auth.py         # JWT + bcrypt
 │
 ├── datanode/
 │   ├── Dockerfile
 │   ├── requirements.txt
 │   └── app/
-│       ├── main.py         # Endpoints: upload, get, delete bloque + listar bloques
-│       └── storage.py      # I/O de bloques en disco (carpeta blocks/)
+│       ├── main.py         # Bloques + heartbeat hacia NameNode
+│       └── storage.py      # I/O en disco (carpeta blocks/)
 │
 └── client/
     ├── Dockerfile
     ├── requirements.txt
-    └── dfs_cli.py          # CLI unificada: put, get, ls, rm, mkdir, rmdir
+    └── dfs_cli.py          # CLI: put, get, ls, status, rm, mkdir, rmdir
 ```
 
 ---
@@ -117,10 +144,17 @@ FinalDFS/
 
 ### 1. Crear `namenode/.env`
 
+```bash
+cp namenode/.env.example namenode/.env
+# Editar con tus credenciales de MongoDB Atlas
+```
+
 ```env
 MONGO_URI=mongodb+srv://<usuario>:<contraseña>@<cluster>.mongodb.net/?retryWrites=true&w=majority
-JWT_SECRET=<cadena-secreta-larga>
+JWT_SECRET=<cadena-secreta-del-servidor>
 ```
+
+> `JWT_SECRET` es la clave que firma los tokens (la defines tú). **No** es la contraseña del usuario ni el hash de MongoDB.
 
 ### 2. Configurar el entorno en `.env` (raíz del proyecto)
 
@@ -132,7 +166,7 @@ PUBLIC_IP=52.23.74.126
 ### 3. Levantar los servicios
 
 ```bash
-docker-compose up -d
+docker compose up -d --build
 ```
 
 ### 4. Verificar que todo está corriendo
@@ -154,8 +188,10 @@ Respuesta esperada de cada servicio:
 ### 5. Apagar los servicios
 
 ```bash
-docker-compose down
+docker compose down
 ```
+
+Guía detallada EC2: [docs/GUIA_EC2.md](docs/GUIA_EC2.md)
 
 ---
 
@@ -223,7 +259,22 @@ python dfs_cli.py put ruta/al/archivo.txt
 [OK] Archivo 'archivo.txt' registrado en el DFS.
 ```
 
-#### Paso 4 — Listar archivos (`ls`)
+#### Paso 4 — Estado de DataNodes (`status`)
+
+```bash
+python dfs_cli.py status
+```
+
+```
+Nodo         Estado    Bloques  Último heartbeat       URL
+------------------------------------------------------------------------------------------
+datanode1    ✓ alive         2  2026-05-26T...         http://52.23.74.126:8001
+...
+```
+
+> No requiere login. Equivalente a `GET /datanodes`.
+
+#### Paso 5 — Listar archivos (`ls`)
 
 ```bash
 python dfs_cli.py ls
@@ -236,7 +287,7 @@ archivo.txt                              2,097,152 bytes
 reporte.pdf                              5,120,000 bytes
 ```
 
-#### Paso 5 — Descargar un archivo (`get`)
+#### Paso 6 — Descargar un archivo (`get`)
 
 ```bash
 python dfs_cli.py get archivo.txt
@@ -251,7 +302,7 @@ python dfs_cli.py get archivo.txt
 
 > El archivo se descarga como `downloaded_<nombre>` en el directorio actual.
 
-#### Paso 6 — Eliminar un archivo (`rm`)
+#### Paso 7 — Eliminar un archivo (`rm`)
 
 ```bash
 python dfs_cli.py rm archivo.txt
@@ -293,9 +344,9 @@ python dfs_cli.py rmdir proyectos/2026
 
 ## 🔌 API Reference
 
-### NameNode (`http://localhost:8000`)
+### NameNode (`http://52.23.74.126:8000`)
 
-Documentación interactiva disponible en `http://localhost:8000/docs` (Swagger UI).
+Documentación interactiva: http://52.23.74.126:8000/docs (Swagger UI).
 
 | Método | Endpoint | Auth | Descripción |
 |---|---|---|---|
@@ -342,6 +393,23 @@ Documentación interactiva disponible en `http://localhost:8000/docs` (Swagger U
 
 ---
 
+## 🔧 Solución de problemas
+
+| Problema | Solución |
+|----------|----------|
+| `No hay sesión activa` | `python dfs_cli.py login usuario contraseña` |
+| Login con hash largo (`JDJiJ...`) | Usar contraseña en texto plano del `register`, no el hash de MongoDB |
+| `status` no reconocido | `git pull` y estar en `client/` |
+| Nodos `dead` en `/datanodes` | `docker compose restart datanode1 datanode2 datanode3` |
+| `put` falla en réplicas | `python dfs_cli.py status` — verificar nodos `alive` |
+| Ver bloques de un archivo | `GET /files/{nombre}` con `Authorization: Bearer $(cat .dfs_token)` |
+
+Más detalle: [docs/GUIA_EC2.md](docs/GUIA_EC2.md) · Demo de fallos: [docs/GUIA_DEMO.md](docs/GUIA_DEMO.md)
+
+---
+
 ## 👥 Autores
 
-Proyecto desarrollado para la asignatura de **Sistemas Distribuidos** — Universidad Pontificia Bolivariana (UPB).
+Proyecto desarrollado para **Sistemas Distribuidos** — Universidad Pontificia Bolivariana (UPB).
+
+**Equipo:** Jose_Velezg · JuanVal0308 · Sara

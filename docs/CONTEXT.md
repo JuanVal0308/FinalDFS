@@ -1,325 +1,252 @@
-# 📋 CONTEXT.md — FinalDFS: Sistema de Archivos Distribuido
+# CONTEXT.md — FinalDFS
 
-> Documento de contexto técnico completo del proyecto.  
-> Universidad Pontificia Bolivariana (UPB) — Sistemas Distribuidos  
-> Última actualización: 2026-05-25
-
----
-
-## 1. Visión General
-
-**FinalDFS** es un Sistema de Archivos Distribuido (DFS) construido desde cero con Python. Simula el comportamiento básico de sistemas como HDFS (Hadoop Distributed File System): divide archivos en bloques, los replica en múltiples nodos de datos y centraliza la metadata en un nodo de nombres.
-
-| Aspecto          | Descripción                                                  |
-|------------------|--------------------------------------------------------------|
-| Lenguaje         | Python 3.11                                                  |
-| Framework API    | FastAPI + Uvicorn                                            |
-| Base de datos    | MongoDB Atlas (vía PyMongo)                                  |
-| Autenticación    | JWT (PyJWT) + bcrypt                                         |
-| Contenedores     | Docker + Docker Compose                                      |
-| Despliegue       | AWS EC2 (`52.23.74.126`)                                     |
-| Tamaño de bloque | 1 MB                                                         |
-| Replicación      | Factor 2 — algoritmo Round-Robin                             |
+> Contexto técnico del sistema.  
+> UPB — Sistemas Distribuidos · Última actualización: 2026-05-26
 
 ---
 
-## 2. Arquitectura del Sistema
+## 1. Visión general
+
+**FinalDFS** es un DFS en Python inspirado en HDFS: partición en bloques, replicación en DataNodes y metadata centralizada en un NameNode con MongoDB Atlas.
+
+| Aspecto | Valor |
+|---------|--------|
+| Lenguaje | Python 3.11 |
+| API | FastAPI + Uvicorn |
+| Base de datos | MongoDB Atlas (`dfs_system`) |
+| Autenticación | JWT (PyJWT) + bcrypt |
+| Contenedores | Docker Compose |
+| Despliegue | AWS EC2 `52.23.74.126` |
+| Bloque por defecto | 64 MB (`DFS_BLOCK_SIZE`) |
+| Replicación | Factor 2, Round-Robin |
+| Integridad | SHA-256 por bloque |
+| Tolerancia a fallos | Heartbeat, detección >90 s, re-replicación |
+
+---
+
+## 2. Arquitectura
 
 ```
-┌──────────────┐         ┌─────────────────────────────────────────┐
-│              │ ──────▶ │              NameNode :8000              │
-│   Cliente    │         │   FastAPI · MongoDB · JWT · bcrypt       │
-│  (Python)    │         │   Metadata + Auth + Asignación bloques   │
-│              │         └─────────────────────────────────────────┘
-└──────┬───────┘
-       │  Sube/descarga bloques directamente a los DataNodes
-       ▼
-┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│  DataNode 1 │    │  DataNode 2 │    │  DataNode 3 │
-│   :8001     │    │   :8002     │    │   :8003     │
-│  FastAPI    │    │  FastAPI    │    │  FastAPI    │
-│  /blocks    │    │  /blocks    │    │  /blocks    │
-└─────────────┘    └─────────────┘    └─────────────┘
+Cliente (dfs_cli) ──► NameNode :8000 ──► MongoDB Atlas
+       │
+       └──► DataNode1 :8001
+       └──► DataNode2 :8002
+       └──► DataNode3 :8003
 ```
 
-### Responsabilidades por componente
+| Componente | Puerto | Rol |
+|------------|--------|-----|
+| NameNode | 8000 | Auth, metadata, allocate, monitor, re-replicación |
+| DataNode 1–3 | 8001–8003 | Almacenamiento de bloques, heartbeat |
+| Cliente | — | `dfs_cli.py` — orquestación put/get/ls/status |
 
-| Componente   | Puerto | Rol                                                       |
-|--------------|--------|-----------------------------------------------------------|
-| **NameNode** | 8000   | Registra usuarios, emite JWT, asigna bloques, guarda metadata en MongoDB |
-| **DataNode1**| 8001   | Almacena bloques en disco (`./blocks/`) y los sirve por HTTP |
-| **DataNode2**| 8002   | Ídem DataNode1 (mismo contenedor, distinto puerto externo) |
-| **DataNode3**| 8003   | Ídem DataNode1                                            |
-| **Client**   | —      | Scripts Python para subir (`dfs_client.py`) y descargar (`dfs_get.py`) archivos |
+Comunicación interna Docker: `namenode:8000`, `datanode1:8001`, etc.  
+URLs públicas al cliente: `http://52.23.74.126:800x`.
 
 ---
 
-## 3. Estructura de Archivos
+## 3. Estructura del repositorio
 
 ```
 FinalDFS/
-│
-├── docker-compose.yml              # Orquestación de todos los servicios
-│
-├── namenode/
-│   ├── Dockerfile                  # Imagen Python 3.11, expone :8000
-│   ├── requirements.txt            # fastapi, uvicorn, pymongo, pyjwt, bcrypt, python-dotenv
-│   └── app/
-│       ├── main.py                 # Endpoints REST del NameNode
-│       ├── models.py               # Modelos Pydantic: FileMetadata, BlockMetadata
-│       ├── database.py             # Conexión a MongoDB Atlas
-│       └── auth.py                 # Funciones JWT + bcrypt
-│
-├── nodo de datos/                  # Plantilla del DataNode (Dockerfile.txt = Dockerfile)
-│   ├── Dockerfile.txt              # ⚠️  Extensión incorrecta — renombrar a Dockerfile
-│   ├── requirements.txt            # fastapi, uvicorn, python-multipart, requests
-│   └── app/
-│       ├── main.py                 # Endpoints: upload y get de bloques
-│       └── storage.py              # I/O de bloques en disco (carpeta blocks/)
-│
-├── client/
-│   ├── Dockerfile                  # Imagen del cliente (uso opcional)
-│   ├── requirements.txt            # requests
-│   ├── dfs_client.py               # Script de SUBIDA de archivos
-│   └── dfs_get.py                  # Script de DESCARGA de archivos
-│
-├── docs/
-│   ├── CONTEXT.md                  # ← Este archivo
-│   └── Proyecto-dfs-v2.docx        # Documento de entrega académica
-│
-├── README.md                       # Documentación general del proyecto
-├── archivo1.txt                    # Archivo de prueba 1
-├── archivo2.txt                    # Archivo de prueba 2
-├── bigfile.bin                     # Archivo binario de prueba (>1 MB)
-├── replicated.bin                  # Archivo binario replicado de prueba
-└── test.txt                        # Archivo de prueba rápida
+├── docker-compose.yml
+├── .env / .env.example          # PUBLIC_IP
+├── namenode/                    # NameNode + namenode/.env (gitignored)
+├── datanode/                    # DataNodes
+├── client/                      # dfs_cli.py
+└── docs/
+    ├── README.md                # Índice
+    ├── GUIA_EC2.md
+    ├── GUIA_DEMO.md
+    ├── INFORME.md
+    ├── CONTEXT.md
+    ├── TASK_MANAGEMENT.md
+    └── diagrams/
+```
+
+Scripts legacy (opcionales): `dfs_client.py`, `dfs_get.py` — sustituidos por `dfs_cli.py`.
+
+---
+
+## 4. Flujos principales
+
+### 4.1 PUT (`dfs_cli.py put`)
+
+1. Login → JWT en `.dfs_token`
+2. Divide archivo en bloques de 64 MB (configurable)
+3. `GET /files/allocate/{file}/{n}` → asignación Round-Robin (2 réplicas)
+4. `POST /block/upload/{block_id}` a cada réplica
+5. `POST /files/register` con checksum SHA-256
+
+Diagrama: [diagrams/seq_put.md](diagrams/seq_put.md)
+
+### 4.2 GET (`dfs_cli.py get`)
+
+1. `GET /files/{filename}` → bloques y réplicas
+2. Por cada bloque, intenta réplicas en orden
+3. Verifica checksum; concatena → `downloaded_{filename}`
+
+Diagrama: [diagrams/seq_get.md](diagrams/seq_get.md)
+
+### 4.3 Heartbeat y re-replicación
+
+1. DataNode: `POST /datanodes/register` al arrancar
+2. Cada 30 s: `POST /datanodes/heartbeat`
+3. NameNode: monitor cada 30 s; sin señal >90 s → `dead`
+4. Re-replica bloques desde réplica viva hacia otro nodo `alive`
+
+Diagrama: [diagrams/seq_heartbeat.md](diagrams/seq_heartbeat.md)
+
+### 4.4 Round-Robin (3 DataNodes, factor 2)
+
+```
+Bloque 0 → DN1 + DN2
+Bloque 1 → DN2 + DN3
+Bloque 2 → DN3 + DN1
+Bloque 3 → DN1 + DN2  ...
 ```
 
 ---
 
-## 4. Flujo de Operaciones
+## 5. API (resumen)
 
-### 4.1 Subida de un archivo (`dfs_client.py`)
+Ver tabla completa en [README.md](../README.md#-api-reference).
 
-```
-Cliente                          NameNode                      DataNodes
-   │                                │                               │
-   │─── GET /files/allocate/{n} ──▶ │                               │
-   │◀── {blocks: [{id, replicas}]} ─│                               │
-   │                                │                               │
-   │  Para cada bloque:             │                               │
-   │──────────────── POST /block/upload/{block_id} ───────────────▶ │
-   │                                │   (a cada réplica asignada)   │
-   │                                │                               │
-   │─── POST /files/register ──────▶│                               │
-   │◀── {message: "File registered"}│                               │
-```
+Endpoints clave Sprint 3:
 
-**Detalle del algoritmo:**
-1. Lee el archivo completo en memoria.
-2. Calcula `num_blocks = ceil(file_size / 1 MB)`.
-3. Llama a `GET /files/allocate/{filename}/{num_blocks}` — el NameNode devuelve la asignación Round-Robin.
-4. Por cada bloque, escribe un archivo temporal y lo sube vía `multipart/form-data` a **cada una de las 2 réplicas**.
-5. Al terminar, registra la metadata completa en el NameNode (`POST /files/register`).
-
-### 4.2 Descarga de un archivo (`dfs_get.py`)
-
-```
-Cliente                          NameNode                      DataNodes
-   │                                │                               │
-   │─── GET /files/{filename} ─────▶│                               │
-   │◀── {filename, blocks} ─────────│                               │
-   │                                │                               │
-   │  Para cada bloque:             │                               │
-   │──────────────── GET /block/{block_id} ──────────────────────▶  │
-   │                 (intenta réplicas en orden, timeout 3s)        │
-   │◀── bytes ──────────────────────────────────────────────────── │
-   │  (concatena bloques → archivo final: downloaded_{filename})   │
-```
-
-**Tolerancia a fallos:** si una réplica no responde (timeout o error), el cliente intenta la siguiente. Si todas fallan, lanza excepción.
-
-### 4.3 Estrategia de replicación Round-Robin
-
-```
-Bloque i → réplica primaria:   DATANODES[ i % 3 ]
-            réplica secundaria: DATANODES[ (i+1) % 3 ]
-
-Ejemplo con archivo de 3 bloques:
-  Bloque 0 → DN1 (primario), DN2 (réplica)
-  Bloque 1 → DN2 (primario), DN3 (réplica)
-  Bloque 2 → DN3 (primario), DN1 (réplica)
-```
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| GET | `/datanodes` | Estado de nodos |
+| POST | `/datanodes/register` | Registro DataNode |
+| POST | `/datanodes/heartbeat` | Actualizar `last_seen` |
 
 ---
 
-## 5. API Reference
+## 6. Modelos de datos
 
-### 5.1 NameNode — `http://52.23.74.126:8000`
+### MongoDB — colección `users`
 
-| Método | Endpoint                              | Body / Params                        | Respuesta                            |
-|--------|---------------------------------------|--------------------------------------|--------------------------------------|
-| GET    | `/`                                   | —                                    | `{service, status}`                  |
-| POST   | `/auth/register`                      | `{username, password}`               | `{message: "User created"}`          |
-| POST   | `/auth/login`                         | `{username, password}`               | `{token: "<JWT>"}`                   |
-| GET    | `/files/allocate/{filename}/{n}`      | Path params                          | `{filename, blocks: [{block_id, replicas}]}` |
-| POST   | `/files/register`                     | `FileMetadata` JSON                  | `{message: "File registered"}`       |
-| GET    | `/files/{filename}`                   | Path param                           | `{filename, blocks}`                 |
-
-### 5.2 DataNode — `http://52.23.74.126:800{1,2,3}`
-
-| Método | Endpoint                    | Body                    | Respuesta                      |
-|--------|-----------------------------|-------------------------|--------------------------------|
-| GET    | `/`                         | —                       | `{service, status}`            |
-| POST   | `/block/upload/{block_id}`  | `multipart/form-data`   | `{message, block_id}`          |
-| GET    | `/block/{block_id}`         | —                       | Bytes (`application/octet-stream`) |
-
----
-
-## 6. Modelos de Datos
-
-### Pydantic (NameNode)
-
-```python
-class BlockMetadata(BaseModel):
-    block_id: str        # e.g. "archivo1.txt_block0"
-    replicas: List[str]  # e.g. ["http://....:8001", "http://....:8002"]
-
-class FileMetadata(BaseModel):
-    filename: str
-    blocks: List[BlockMetadata]
+```json
+{ "username": "juan", "password": "<bcrypt_hash>" }
 ```
 
-### MongoDB (`dfs_system`)
+### MongoDB — colección `files`
 
-**Colección `users`:**
 ```json
 {
-  "_id": ObjectId,
-  "username": "juan",
-  "password": "<bcrypt_hash>"
-}
-```
-
-**Colección `files`:**
-```json
-{
-  "_id": ObjectId,
   "filename": "archivo1.txt",
-  "blocks": [
-    { "block_id": "archivo1.txt_block0", "replicas": ["http://...:8001", "http://...:8002"] },
-    { "block_id": "archivo1.txt_block1", "replicas": ["http://...:8002", "http://...:8003"] }
-  ]
+  "owner": "juan",
+  "total_size": 52,
+  "blocks": [{
+    "block_id": "juan_archivo1.txt_block0",
+    "replicas": ["http://52.23.74.126:8001", "http://52.23.74.126:8002"],
+    "checksum": "<sha256>",
+    "size_bytes": 52
+  }]
 }
+```
+
+### MongoDB — colección `datanodes`
+
+```json
+{
+  "node_id": "datanode1",
+  "url": "http://52.23.74.126:8001",
+  "status": "alive",
+  "last_seen": "2026-05-26T12:00:00Z",
+  "blocks": ["juan_archivo1.txt_block0"]
+}
+```
+
+### MongoDB — colección `directories`
+
+```json
+{ "path": "proyectos/2026", "owner": "juan" }
 ```
 
 ---
 
 ## 7. Autenticación
 
-| Componente     | Biblioteca | Descripción                                      |
-|----------------|------------|--------------------------------------------------|
-| Hash contraseña| `bcrypt`   | `bcrypt.hashpw` con salt aleatorio               |
-| Verificación   | `bcrypt`   | `bcrypt.checkpw`                                 |
-| Token sesión   | `PyJWT`    | HS256, payload `{"username": "..."}`, sin expiración configurada |
-| Secreto JWT    | `.env`     | Variable `JWT_SECRET` en `namenode/.env`         |
+| Concepto | Ubicación | Notas |
+|----------|-----------|--------|
+| `JWT_SECRET` | `namenode/.env` | Clave del servidor (tú la defines) |
+| Token de sesión | Respuesta `/auth/login`, `client/.dfs_token` | Header `Authorization: Bearer ...` |
+| Contraseña usuario | Texto plano en login; hash bcrypt en MongoDB | No usar el hash como contraseña |
 
-> ⚠️ **Limitación:** los endpoints de archivos (`/files/*`) **no validan el token JWT** — cualquier cliente sin autenticar puede acceder a ellos en la implementación actual.
-
----
-
-## 8. Configuración y Variables de Entorno
-
-### `namenode/.env` (no incluido en el repo)
-
-```env
-MONGO_URI=mongodb+srv://<usuario>:<contraseña>@<cluster>.mongodb.net/dfs_system
-JWT_SECRET=<clave_secreta>
-```
-
-### URLs hardcodeadas (a revisar)
-
-| Archivo                        | Variable         | Valor actual            |
-|--------------------------------|------------------|-------------------------|
-| `namenode/app/main.py`         | `DATANODES`      | `http://52.23.74.126:800{1,2,3}` |
-| `client/dfs_client.py`         | `NAMENODE_URL`   | `http://52.23.74.126:8000` |
-| `client/dfs_get.py`            | `NAMENODE_URL`   | `http://52.23.74.126:8000` |
-
-> Estas IPs corresponden a una instancia AWS EC2. Para entornos locales o Docker Compose usar `http://namenode:8000` / `http://datanode{1,2,3}:8001`.
+Endpoints `/files/*` y `/directories/*` requieren JWT válido.
 
 ---
 
-## 9. Despliegue con Docker Compose
+## 8. Variables de entorno
 
-```yaml
-# docker-compose.yml (resumen)
-services:
-  namenode:    build: ./namenode    ports: 8000:8000
-  datanode1:   build: ./datanode    ports: 8001:8001
-  datanode2:   build: ./datanode    ports: 8002:8001
-  datanode3:   build: ./datanode    ports: 8003:8001
-```
+### Raíz (`.env`)
 
-> ⚠️ El `build` de los DataNodes apunta a `./datanode`, pero el directorio en el repo se llama `nodo de datos` (con espacio). Esto puede causar error en `docker-compose up --build`. Verificar que el directorio de build coincida.
+| Variable | Default EC2 | Uso |
+|----------|-------------|-----|
+| `PUBLIC_IP` | `52.23.74.126` | URLs públicas en allocate |
 
-### Comandos útiles
+### `namenode/.env`
+
+| Variable | Uso |
+|----------|-----|
+| `MONGO_URI` | MongoDB Atlas |
+| `JWT_SECRET` | Firma JWT |
+
+### NameNode (docker-compose)
+
+| Variable | Default |
+|----------|---------|
+| `DATANODES` | URLs internas Docker |
+| `PUBLIC_DATANODES` | URLs públicas EC2 |
+| `HEARTBEAT_TIMEOUT_SEC` | 90 |
+| `MONITOR_INTERVAL_SEC` | 30 |
+
+### DataNode
+
+| Variable | Default |
+|----------|---------|
+| `NODE_ID` | datanode1/2/3 |
+| `NAMENODE_URL` | http://namenode:8000 |
+| `NODE_PUBLIC_URL` | http://52.23.74.126:800x |
+| `HEARTBEAT_INTERVAL_SEC` | 30 |
+
+### Cliente
+
+| Variable | Default |
+|----------|---------|
+| `NAMENODE_URL` | http://52.23.74.126:8000 |
+| `DFS_BLOCK_SIZE` | 67108864 (64 MB) |
+
+---
+
+## 9. Despliegue
 
 ```bash
-# Levantar todos los servicios
-docker-compose up --build
-
-# Ver logs en tiempo real
-docker-compose logs -f
-
-# Detener y limpiar
-docker-compose down
-
-# Subir un archivo (desde el host)
-python client/dfs_client.py archivo1.txt
-
-# Descargar un archivo
-python client/dfs_get.py archivo1.txt
+cp .env.example .env
+cp namenode/.env.example namenode/.env
+# editar namenode/.env
+docker compose up -d --build
 ```
 
----
-
-## 10. Limitaciones Conocidas y Mejoras Sugeridas
-
-| # | Limitación                                              | Mejora sugerida                                   |
-|---|---------------------------------------------------------|---------------------------------------------------|
-| 1 | JWT no validado en endpoints de archivos                | Añadir `Depends(verify_token)` en FastAPI         |
-| 2 | IPs hardcodeadas en cliente y NameNode                  | Usar variables de entorno (`NAMENODE_URL`, `DATANODE_URLS`) |
-| 3 | `Dockerfile.txt` del DataNode (extensión incorrecta)    | Renombrar a `Dockerfile`                          |
-| 4 | Directorio con espacio (`nodo de datos`)                | Renombrar a `datanode`                            |
-| 5 | Sin expiración en tokens JWT                            | Añadir claim `exp` al payload                    |
-| 6 | Sin heartbeat entre DataNodes y NameNode                | Implementar endpoint `/health` y polling periódico|
-| 7 | Los archivos temporales se crean en `/tmp/` (Linux only)| Usar `tempfile` de Python para portabilidad       |
-| 8 | No hay manejo de archivos duplicados                    | Verificar existencia antes de registrar en MongoDB|
-| 9 | Sin paginación en listado de archivos                   | Implementar `GET /files` con paginación           |
-| 10| Sin cifrado en tránsito                                 | Añadir TLS/HTTPS en producción                   |
+Guías: [GUIA_EC2.md](GUIA_EC2.md) · [GUIA_DEMO.md](GUIA_DEMO.md)
 
 ---
 
-## 11. Tecnologías y Dependencias
+## 10. Limitaciones conocidas
 
-| Componente    | Paquete           | Uso                                      |
-|---------------|-------------------|------------------------------------------|
-| NameNode      | `fastapi`         | Framework REST                           |
-| NameNode      | `uvicorn`         | Servidor ASGI                            |
-| NameNode      | `pymongo`         | Driver MongoDB                           |
-| NameNode      | `python-dotenv`   | Carga de variables de entorno            |
-| NameNode      | `bcrypt`          | Hash de contraseñas                      |
-| NameNode      | `pyjwt`           | Generación y validación JWT              |
-| DataNode      | `fastapi`         | Framework REST                           |
-| DataNode      | `uvicorn`         | Servidor ASGI                            |
-| DataNode      | `python-multipart`| Recepción de archivos multipart          |
-| Cliente       | `requests`        | Llamadas HTTP al NameNode y DataNodes    |
+| # | Limitación |
+|---|------------|
+| 1 | Tokens JWT sin expiración (`exp`) por defecto |
+| 2 | Re-replicación vía NameNode (no copia directa entre DataNodes) |
+| 3 | `put` carga el archivo completo en memoria del cliente |
+| 4 | Sin TLS/HTTPS en el despliegue actual |
+| 5 | Orden de arranque: si DataNodes suben antes que NameNode, reintentan registro |
 
 ---
 
-## 12. Equipo y Contexto Académico
+## 11. Equipo
 
-- **Materia:** Sistemas Distribuidos  
-- **Universidad:** Pontificia Bolivariana (UPB)  
-- **Repositorio:** `JuanVal0308/feature/dfs-client` (rama de feature fusionada a `main`)  
-- **Colaboradores:** Jose_Velezg, JuanVal0308  
+- **Materia:** Sistemas Distribuidos — UPB
+- **Repositorio:** https://github.com/JuanVal0308/FinalDFS
+- **Colaboradores:** Jose_Velezg, JuanVal0308, Sara

@@ -5,6 +5,8 @@
 > Equipo: Jose_Velezg, JuanVal0308, Sara  
 > Despliegue: AWS EC2 `52.23.74.126`
 
+**Documentación operativa:** [GUIA_EC2.md](GUIA_EC2.md) · [GUIA_DEMO.md](GUIA_DEMO.md) · [README del repo](../README.md)
+
 ---
 
 ## §1 Objetivo
