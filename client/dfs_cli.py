@@ -70,7 +70,8 @@ def cmd_register(username: str, password: str) -> None:
     """Registra un nuevo usuario."""
     resp = requests.post(
         f"{NAMENODE_URL}/auth/register",
-        json={"username": username, "password": password}
+        json={"username": username, "password": password},
+        timeout=10
     )
     if resp.status_code == 200:
         print(f"[OK] Usuario '{username}' registrado correctamente.")
@@ -83,7 +84,8 @@ def cmd_login(username: str, password: str) -> None:
     """Autentica al usuario y guarda el token localmente."""
     resp = requests.post(
         f"{NAMENODE_URL}/auth/login",
-        json={"username": username, "password": password}
+        json={"username": username, "password": password},
+        timeout=10
     )
     if resp.status_code == 200:
         token = resp.json()["token"]
@@ -123,7 +125,8 @@ def cmd_put(local_path: str) -> None:
     # Solicitar asignación al NameNode
     alloc_resp = requests.get(
         f"{NAMENODE_URL}/files/allocate/{filename}/{num_blocks}",
-        headers=auth_headers()
+        headers=auth_headers(),
+        timeout=10
     )
     if alloc_resp.status_code != 200:
         print(f"[ERROR] Allocate falló: {alloc_resp.status_code} {alloc_resp.text}")
@@ -183,7 +186,8 @@ def cmd_put(local_path: str) -> None:
     reg_resp = requests.post(
         f"{NAMENODE_URL}/files/register",
         json=metadata,
-        headers=auth_headers()
+        headers=auth_headers(),
+        timeout=10
     )
     if reg_resp.status_code == 200:
         print(f"[OK] Archivo '{filename}' registrado en el DFS.")
@@ -202,7 +206,8 @@ def cmd_get(filename: str) -> None:
     """
     meta_resp = requests.get(
         f"{NAMENODE_URL}/files/{filename}",
-        headers=auth_headers()
+        headers=auth_headers(),
+        timeout=10
     )
     if meta_resp.status_code == 404:
         print(f"[ERROR] Archivo '{filename}' no encontrado en el DFS.")
@@ -291,7 +296,8 @@ def cmd_ls() -> None:
     """Lista todos los archivos del usuario autenticado."""
     resp = requests.get(
         f"{NAMENODE_URL}/files",
-        headers=auth_headers()
+        headers=auth_headers(),
+        timeout=10
     )
     if resp.status_code != 200:
         print(f"[ERROR] {resp.status_code}: {resp.text}")
@@ -314,7 +320,8 @@ def cmd_rm(filename: str) -> None:
     """Elimina un archivo del DFS (bloques + metadata)."""
     resp = requests.delete(
         f"{NAMENODE_URL}/files/{filename}",
-        headers=auth_headers()
+        headers=auth_headers(),
+        timeout=10
     )
     if resp.status_code == 200:
         result = resp.json()
@@ -334,7 +341,8 @@ def cmd_mkdir(path: str) -> None:
     resp = requests.post(
         f"{NAMENODE_URL}/directories",
         json={"path": path},
-        headers=auth_headers()
+        headers=auth_headers(),
+        timeout=10
     )
     if resp.status_code == 200:
         print(f"[OK] Directorio '{path}' creado.")
@@ -350,7 +358,8 @@ def cmd_rmdir(path: str) -> None:
     """Elimina un directorio y todos sus archivos del DFS."""
     resp = requests.delete(
         f"{NAMENODE_URL}/directories/{path}",
-        headers=auth_headers()
+        headers=auth_headers(),
+        timeout=10
     )
     if resp.status_code == 200:
         result = resp.json()
